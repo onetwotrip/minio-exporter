@@ -29,6 +29,7 @@ import (
 
 	minio "github.com/minio/minio-go"
 	"github.com/minio/minio/pkg/madmin"
+	"github.com/google/go-cmp/cmp"
 )
 
 const (
@@ -203,7 +204,7 @@ func collectServerStats(e *MinioExporter, ch chan<- prometheus.Metric) {
 			float64(serverUp), host)
 	}
 
-	if storageInfo != (madmin.StorageInfo{}) {
+	if !cmp.Equal(storageInfo, madmin.StorageInfo{}) {
 		collectStorageInfo(storageInfo, ch)
 	}
 }
