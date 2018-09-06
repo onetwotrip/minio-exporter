@@ -29,6 +29,7 @@ import (
 
 	minio "github.com/minio/minio-go"
 	"github.com/minio/minio/pkg/madmin"
+	"github.com/google/go-cmp/cmp"
 )
 
 const (
@@ -61,7 +62,7 @@ type MinioExporter struct {
 }
 
 // NewMinioExporter inits and returns a MinioExporter
-func NewMinioExporter(uri string, minioKey string, minioSecret string, bucketStats bool) (*MinioExporter, error) {
+func NewMinioExporter(uri string, minioKey string, minioSecret string, bucketStats bool, region string) (*MinioExporter, error) {
 	secure := false
 	newURI := uri
 
@@ -89,7 +90,7 @@ func NewMinioExporter(uri string, minioKey string, minioSecret string, bucketSta
 		return nil, fmt.Errorf("Minio admin client error %s", err)
 	}
 
-	minioClient, err := minio.New(urlMinio.Host, minioKey, minioSecret, secure)
+	minioClient, err := minio.NewWithRegion(urlMinio.Host, minioKey, minioSecret, secure, region)
 	if err != nil {
 		return nil, fmt.Errorf("Minio client error %s", err)
 	}
@@ -203,7 +204,7 @@ func collectServerStats(e *MinioExporter, ch chan<- prometheus.Metric) {
 			float64(serverUp), host)
 	}
 
-	if storageInfo != (madmin.StorageInfo{}) {
+	if !cmp.Equal(storageInfo, madmin.StorageInfo{}) {
 		collectStorageInfo(storageInfo, ch)
 	}
 }
@@ -566,6 +567,7 @@ func main() {
 		minioURI      = flag.String("minio.server", getEnv("MINIO_URL", "http://localhost:9000"), "HTTP address of the Minio server")
 		minioKey      = flag.String("minio.access-key", getEnv("MINIO_ACCESS_KEY", ""), "The access key used to login in to Minio.")
 		minioSecret   = flag.String("minio.access-secret", getEnv("MINIO_ACCESS_SECRET", ""), "The access secret used to login in to Minio")
+		region		  = flag.String("minio.region", getEnv("MINIO_REGION", "us-east-1"), "Region to to login in to Minio")
 		bucketStats   = flag.Bool("minio.bucket-stats", false, "Collect bucket statistics. It can take long.")
 	)
 
@@ -576,7 +578,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	exporter, err := NewMinioExporter(*minioURI, *minioKey, *minioSecret, *bucketStats)
+	exporter, err := NewMinioExporter(*minioURI, *minioKey, *minioSecret, *bucketStats, *region)
 	if err != nil {
 		log.Fatalln(err)
 	}
